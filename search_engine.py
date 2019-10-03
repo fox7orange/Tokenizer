@@ -10,6 +10,7 @@ class ContextWindow(object):
     """This class stores information about context windows
 
     """
+
     def __init__(self, positions, line, beginning, end):
         """This method creates an instance of ContextWindow class
 
@@ -43,7 +44,7 @@ class ContextWindow(object):
                     break
         if i != position.line:
             raise ValueError('Wrong line number')
-        
+
         line = line.strip("\n")
         positions = [position]
 
@@ -70,7 +71,7 @@ class ContextWindow(object):
         return (self.beginning <= con.end and
                 self.end >= con.beginning and
                 con.line == self.line)
-    
+
     def join_contexts(self, con):
         """A method for combining overlapping contexts
 
@@ -95,7 +96,7 @@ class ContextWindow(object):
 
         if left:
             if last_obj:
-                self.beginning = last_obj.end()-1
+                self.beginning = last_obj.end() - 1
             else:
                 self.beginning = 0
         if right:
@@ -135,6 +136,7 @@ class SearchEngine(object):
     """Searching engine for finding certain tokens or groups of tokens in a database
 
     """
+
     def __init__(self, database):
         """Creates an instance of the class SearchEngine
 
@@ -148,13 +150,13 @@ class SearchEngine(object):
 
         @param query: the word that is to be searched for
 
-        """        
+        """
         if not isinstance(query, str):
-            raise TypeError        
+            raise TypeError
         if query not in self.database:
-            return {}        
+            return {}
         if query == "":
-            raise ValueError        
+            raise ValueError
         return self.database[query]
 
     def multiple_tokens_search(self, query):
@@ -164,17 +166,17 @@ class SearchEngine(object):
 
         """
         if not isinstance(query, str):
-            raise TypeError        
+            raise TypeError
         if query == "":
-            raise ValueError        
+            raise ValueError
         tokenizer = Tokenizer()
         search_tokens = list(tokenizer.generate_alpha_and_digits(query))
-        search_results = []        
+        search_results = []
         for token in search_tokens:
             if token.word not in self.database:
-                return{}
+                return {}
             search_results.append(self.single_token_search(token.word))
-        files = set(search_results[0])        
+        files = set(search_results[0])
         for result in search_results[1:]:
             files &= set(result)
         final_result = {}
@@ -189,7 +191,7 @@ class SearchEngine(object):
         @param input_dict: a dictionary of files and positions
         @param context_size: size of the output context windows
 
-        """      
+        """
         if not (isinstance(input_dict, dict) and
                 isinstance(context_size, int)):
             raise ValueError
@@ -201,7 +203,7 @@ class SearchEngine(object):
                 contexts_dict.setdefault(f, []).append(context)
 
         joined_contexts_dict = self.join_windows(contexts_dict)
-        
+
         return joined_contexts_dict
 
     def join_windows(self, input_dict):
@@ -209,7 +211,7 @@ class SearchEngine(object):
 
         @param input_dict: a dictionary to combine
 
-        """       
+        """
         contexts_dict = {}
         null_cont = ContextWindow([], "", 0, 0)
         for f, contexts in input_dict.items():
@@ -265,19 +267,45 @@ class SearchEngine(object):
                 os.remove(filename)
 
 
+def entering():
+    file_name, query = input('Enter the name of file you want to tokenize: \n'), \
+                       input('Enter the query you want to find: \n')
+    function = int(input('Select the function you want to apply to the file (enter the number 1-4):\n'
+                         '1 - search several words\n'
+                         '2 - search to sentence\n'
+                         '3 - search to highlight\n'
+                         '4 - exit\n'
+                         ))
+    return file_name, query, function
+
+
 def main():
     indexing = indexer.Indexer('database')
-    with open('text.txt', 'w') as test_file_1:
-        test_file_1.write('Огромный зал на первом этаже обращен окнами на север, точно художественная студия. '
-                          'На дворе лето, в зале и вовсе тропически жарко, но по-зимнему холоден и водянист свет, '
-                          'что жадно течет в эти окна в поисках живописно драпированных манекенов или нагой натуры, '
-                          'пусть блеклой и зябко-пупырчатой, – и находит лишь никель, стекло, холодно блестящий фарфор '
-                          'лаборатории')
-
-    indexing.indexing_with_lines('text.txt')
+    file_name, query, function = entering()
+    indexing.indexing_with_lines(file_name)
     searching = SearchEngine('database')
-    result = searching.search_to_highlight('Огромный первом', 2)
-    print(result)
+
+    result = None
+    if function == 1:
+        result = searching.multiple_tokens_search(query)
+    elif function == 2:
+        context_size = int(input('Enter the context size to searching:\n'))
+        result = searching.search_to_sentence(query, context_size)
+    elif function == 3:
+        context_size = int(input('Enter the context size to searching:\n'))
+        result = searching.search_to_highlight(query, context_size)
+    elif function == 4:
+        exit()
+    else:
+        print('You entered a wrong function number, try again')
+        entering()
+
+    with open('result.txt', 'w') as result_file:
+        for key in result:
+            result_file.write(key + ':\n')
+            for el in result[key]:
+                result_file.write(el + '\n')
+            result_file.write('\n')
 
     del searching
     for filename in os.listdir(os.getcwd()):
@@ -285,5 +313,5 @@ def main():
             os.remove(filename)
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
     main()
